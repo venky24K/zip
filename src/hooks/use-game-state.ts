@@ -79,11 +79,6 @@ export function useGameState(initialDifficulty: Difficulty = 'easy') {
         const secondLast = prev.userPath[prev.userPath.length - 2]!;
         if (secondLast.row === cell.row && secondLast.col === cell.col) {
           const newPath = prev.userPath.slice(0, -1);
-          let nextCp = 1;
-          for (const [, cpNum] of prev.puzzle.checkpointCells.entries()) {
-            const inPath = newPath.some(c => cellKey(c.row, c.col) === _) ;
-          }
-          // Recalc next checkpoint
           let nc = 1;
           const visited = new Set(newPath.map(c => cellKey(c.row, c.col)));
           for (const [ck, cpNum] of prev.puzzle.checkpointCells.entries()) {
