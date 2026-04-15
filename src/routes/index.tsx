@@ -1,26 +1,58 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router';
+import { GameBoard } from '@/components/game/GameBoard';
+import { GameHeader } from '@/components/game/GameHeader';
+import { GameControls } from '@/components/game/GameControls';
+import { CompletionOverlay } from '@/components/game/CompletionOverlay';
+import { useGameState } from '@/hooks/use-game-state';
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute('/')({
   component: Index,
+  head: () => ({
+    meta: [
+      { title: 'Zip Path — Puzzle Game' },
+      { name: 'description', content: 'Draw a path through the maze, visiting all checkpoints in order. A beautiful mobile puzzle game.' },
+    ],
+  }),
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
+function Index() {
+  const { state, addCell, undo, reset, newPuzzle, showHint } = useGameState('easy');
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
+    <div className="flex min-h-svh flex-col bg-background">
+      <GameHeader
+        timer={state.timer}
+        status={state.status}
+        difficulty={state.difficulty}
+        onReset={reset}
+        onNewPuzzle={newPuzzle}
+      />
+
+      <div className="relative flex flex-1 flex-col">
+        <GameBoard
+          puzzle={state.puzzle}
+          userPath={state.userPath}
+          hintCell={state.hintCell}
+          status={state.status}
+          onCellEnter={addCell}
+        />
+
+        {state.status === 'complete' && (
+          <CompletionOverlay
+            timer={state.timer}
+            moveCount={state.moveCount}
+            onNewPuzzle={() => newPuzzle()}
+          />
+        )}
+      </div>
+
+      <GameControls
+        onUndo={undo}
+        onHint={showHint}
+        onNewPuzzle={newPuzzle}
+        canUndo={state.userPath.length > 0}
+        difficulty={state.difficulty}
       />
     </div>
   );
-}
-
-function Index() {
-  return <PlaceholderIndex />;
 }

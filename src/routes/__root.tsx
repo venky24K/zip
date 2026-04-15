@@ -29,14 +29,13 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { title: 'Zip Path — Puzzle Game' },
+      { name: 'description', content: 'Draw a path through the maze, visiting checkpoints in order. A clean, addictive mobile puzzle.' },
+      { name: 'author', content: 'Lovable' },
+      { property: 'og:title', content: 'Zip Path — Puzzle Game' },
+      { property: 'og:description', content: 'Draw a path through the maze, visiting checkpoints in order.' },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
     links: [
       {
