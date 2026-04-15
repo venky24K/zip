@@ -165,8 +165,37 @@ export function useGameState(initialDifficulty: Difficulty = 'easy') {
 
   const showHint = useCallback(() => {
     setState(prev => {
-      const hint = getNextHint(prev.puzzle, prev.userPath);
-      return { ...prev, hintCell: hint };
+      // 1. Find the first index where userPath diverges from solutionPath
+      let divergenceIdx = prev.userPath.length;
+      for (let i = 0; i < prev.userPath.length; i++) {
+        if (
+          prev.userPath[i].row !== prev.puzzle.solutionPath[i].row ||
+          prev.userPath[i].col !== prev.puzzle.solutionPath[i].col
+        ) {
+          divergenceIdx = i;
+          break;
+        }
+      }
+
+      let newPath = prev.userPath;
+      let nc = prev.nextCheckpoint;
+
+      // 2. If diverged, truncate path to the point of divergence
+      if (divergenceIdx < prev.userPath.length) {
+        newPath = prev.userPath.slice(0, divergenceIdx);
+        
+        // Recalculate nextCheckpoint for truncated path
+        let nextCc = 1;
+        const visited = new Set(newPath.map(c => cellKey(c.row, c.col)));
+        for (const [ck, cpNum] of prev.puzzle.checkpointCells.entries()) {
+          if (visited.has(ck) && cpNum >= nextCc) nextCc = cpNum + 1;
+        }
+        nc = nextCc;
+      }
+
+      // 3. Get the hint based on the (potentially truncated) path
+      const hint = getNextHint(prev.puzzle, newPath);
+      return { ...prev, userPath: newPath, nextCheckpoint: nc, hintCell: hint };
     });
   }, []);
 

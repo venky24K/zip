@@ -215,22 +215,66 @@ export function GameBoard({ puzzle, userPath, hintCell, status, error, onCellEnt
             );
           })()}
 
-          {/* Hint pulse */}
-          {hintCell && (
-            <motion.rect
-              x={getCellTopLeft(hintCell.row, hintCell.col).x}
-              y={getCellTopLeft(hintCell.row, hintCell.col).y}
-              width={CELL_SIZE}
-              height={CELL_SIZE}
-              rx={CORNER_R}
-              fill="none"
-              stroke="var(--game-path)"
-              strokeWidth={2}
-              initial={{ opacity: 1 }}
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 1.2, repeat: Infinity }}
-            />
-          )}
+          {/* Hint Indicator */}
+          {hintCell && (() => {
+            const last = userPath[userPath.length - 1];
+            const targetPos = getCellCenter(hintCell.row, hintCell.col);
+            
+            if (!last) {
+              // Pulse for start cell
+              return (
+                <motion.rect
+                  x={getCellTopLeft(hintCell.row, hintCell.col).x}
+                  y={getCellTopLeft(hintCell.row, hintCell.col).y}
+                  width={CELL_SIZE}
+                  height={CELL_SIZE}
+                  rx={CORNER_R}
+                  fill="none"
+                  stroke="var(--game-path)"
+                  strokeWidth={3}
+                  initial={{ opacity: 1, scale: 0.9 }}
+                  animate={{ opacity: [1, 0.4, 1], scale: [0.9, 1.05, 0.9] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              );
+            }
+
+            const startPos = getCellCenter(last.row, last.col);
+            const dx = targetPos.x - startPos.x;
+            const dy = targetPos.y - startPos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            
+            // Normalize direction vector
+            const nx = dx / dist;
+            const ny = dy / dist;
+            
+            // Position arrow halfway between or near target
+            const arrowBaseX = targetPos.x - nx * 24;
+            const arrowBaseY = targetPos.y - ny * 24;
+            
+            return (
+              <motion.g
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <motion.path
+                  d="M-8,-8 L8,0 L-8,8 Z"
+                  fill="var(--game-path)"
+                  animate={{ 
+                    x: [arrowBaseX, arrowBaseX + nx * 10, arrowBaseX],
+                    y: [arrowBaseY, arrowBaseY + ny * 10, arrowBaseY]
+                  }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ 
+                    rotate: angle,
+                    transformOrigin: '0px 0px',
+                    filter: 'drop-shadow(0 0 3px var(--game-path))'
+                  }}
+                />
+              </motion.g>
+            );
+          })()}
         </svg>
 
       </div>

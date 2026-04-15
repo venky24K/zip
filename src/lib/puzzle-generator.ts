@@ -146,7 +146,17 @@ export function generatePuzzle(difficulty: Difficulty, seed?: number): PuzzleDat
 }
 
 export function getNextHint(puzzle: PuzzleData, currentPath: Cell[]): Cell | null {
-  // Find where user path diverged from solution, or give next solution step
+  // 1. Find the first point where the user path diverges from the solution
+  for (let i = 0; i < currentPath.length; i++) {
+    const u = currentPath[i];
+    const s = puzzle.solutionPath[i];
+    if (u.row !== s.row || u.col !== s.col) {
+      // Divergence! Hint is where they should have gone.
+      return s;
+    }
+  }
+
+  // 2. No divergence, give the next step after current path
   const nextIdx = currentPath.length;
   if (nextIdx >= puzzle.solutionPath.length) return null;
   return puzzle.solutionPath[nextIdx]!;
