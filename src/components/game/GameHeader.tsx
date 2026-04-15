@@ -1,4 +1,4 @@
-import { type Difficulty, type GameState } from '@/hooks/use-game-state';
+import type { Difficulty } from '@/lib/puzzle-generator';
 import type { GameStatus } from '@/hooks/use-game-state';
 
 interface GameHeaderProps {

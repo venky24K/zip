@@ -1,4 +1,4 @@
-import type { Difficulty } from '@/hooks/use-game-state';
+import type { Difficulty } from '@/lib/puzzle-generator';
 
 interface GameControlsProps {
   onUndo: () => void;
