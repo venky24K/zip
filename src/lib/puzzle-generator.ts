@@ -9,24 +9,12 @@ export interface PuzzleData {
   gridSize: number;
   solutionPath: Cell[];
   checkpoints: Map<number, number>; // pathIndex -> checkpointNumber
-  walls: Set<string>;
+  checkpointCells: Map<string, number>; // "r,c" -> checkpointNumber
   difficulty: Difficulty;
 }
 
 function cellKey(r: number, c: number): string {
   return `${r},${c}`;
-}
-
-function edgeKey(r1: number, c1: number, r2: number, c2: number): string {
-  if (r1 < r2 || (r1 === r2 && c1 < c2)) return `${r1},${c1}-${r2},${c2}`;
-  return `${r2},${c2}-${r1},${c1}`;
-}
-
-function getNeighbors(r: number, c: number, size: number): Cell[] {
-  const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-  return dirs
-    .map(([dr, dc]) => ({ row: r + dr, col: c + dc }))
-    .filter(n => n.row >= 0 && n.row < size && n.col >= 0 && n.col < size);
 }
 
 // Seeded PRNG (mulberry32)
@@ -40,13 +28,11 @@ function createRng(seed: number) {
   };
 }
 
-function shuffleArray<T>(arr: T[], rng: () => number): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j]!, a[i]!];
-  }
-  return a;
+function getNeighbors(r: number, c: number, size: number): Cell[] {
+  const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  return dirs
+    .map(([dr, dc]) => ({ row: r + dr, col: c + dc }))
+    .filter(n => n.row >= 0 && n.row < size && n.col >= 0 && n.col < size);
 }
 
 // Generate Hamiltonian path using Warnsdorff's heuristic + backtracking
@@ -58,7 +44,7 @@ function generateHamiltonianPath(size: number, rng: () => number): Cell[] | null
     return getNeighbors(r, c, size).filter(n => !visited.has(cellKey(n.row, n.col))).length;
   }
 
-  function solve(path: Cell[], depth: number): Cell[] | null {
+  function solve(path: Cell[]): Cell[] | null {
     if (path.length === total) return path;
 
     const current = path[path.length - 1]!;
@@ -81,7 +67,7 @@ function generateHamiltonianPath(size: number, rng: () => number): Cell[] | null
       visited.add(key);
       path.push(next);
 
-      const result = solve(path, depth + 1);
+      const result = solve(path);
       if (result) return result;
 
       path.pop();
@@ -91,22 +77,25 @@ function generateHamiltonianPath(size: number, rng: () => number): Cell[] | null
     return null;
   }
 
-  const starts = shuffleArray(
-    [
-      { row: 0, col: 0 },
-      { row: 0, col: size - 1 },
-      { row: size - 1, col: 0 },
-      { row: size - 1, col: size - 1 },
-      { row: Math.floor(size / 2), col: 0 },
-      { row: 0, col: Math.floor(size / 2) },
-    ],
-    rng
-  );
+  // Try random starting corners
+  const corners = [
+    { row: 0, col: 0 },
+    { row: 0, col: size - 1 },
+    { row: size - 1, col: 0 },
+    { row: size - 1, col: size - 1 },
+    { row: Math.floor(size / 2), col: 0 },
+    { row: 0, col: Math.floor(size / 2) },
+  ];
+  // Shuffle starts
+  for (let i = corners.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [corners[i], corners[j]] = [corners[j]!, corners[i]!];
+  }
 
-  for (const start of starts) {
+  for (const start of corners) {
     visited.clear();
     visited.add(cellKey(start.row, start.col));
-    const result = solve([{ ...start }], 0);
+    const result = solve([{ ...start }]);
     if (result) return [...result];
   }
 
@@ -115,9 +104,9 @@ function generateHamiltonianPath(size: number, rng: () => number): Cell[] | null
 
 function getCheckpointCount(difficulty: Difficulty, rng: () => number): number {
   switch (difficulty) {
-    case 'easy': return 3 + Math.floor(rng() * 2);
-    case 'medium': return 5 + Math.floor(rng() * 3);
-    case 'hard': return 8 + Math.floor(rng() * 3);
+    case 'easy': return 3 + Math.floor(rng() * 2); // 3-4
+    case 'medium': return 5 + Math.floor(rng() * 3); // 5-7
+    case 'hard': return 8 + Math.floor(rng() * 3); // 8-10
   }
 }
 
@@ -133,81 +122,31 @@ export function generatePuzzle(difficulty: Difficulty, seed?: number): PuzzleDat
   const numCheckpoints = getCheckpointCount(difficulty, rng);
   const checkpoints = new Map<number, number>();
 
+  // First at start, last at end
   checkpoints.set(0, 1);
   checkpoints.set(path.length - 1, numCheckpoints);
 
+  // Distribute remaining evenly
   const innerCount = numCheckpoints - 2;
   if (innerCount > 0) {
     const spacing = Math.floor((path.length - 2) / (innerCount + 1));
     for (let i = 1; i <= innerCount; i++) {
-      const idx = i * spacing;
-      checkpoints.set(idx, i + 1);
+      checkpoints.set(i * spacing, i + 1);
     }
   }
 
-  const walls = new Set<string>();
-  const pathEdges = new Set<string>();
-
-  for (let i = 0; i < path.length - 1; i++) {
-    const a = path[i]!;
-    const b = path[i + 1]!;
-    pathEdges.add(edgeKey(a.row, a.col, b.row, b.col));
+  // Build cell->checkpoint lookup
+  const checkpointCells = new Map<string, number>();
+  for (const [pathIdx, cpNum] of checkpoints.entries()) {
+    const cell = path[pathIdx]!;
+    checkpointCells.set(cellKey(cell.row, cell.col), cpNum);
   }
 
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      for (const n of getNeighbors(r, c, gridSize)) {
-        const ek = edgeKey(r, c, n.row, n.col);
-        if (!pathEdges.has(ek)) {
-          walls.add(ek);
-        }
-      }
-    }
-  }
-
-  return { gridSize, solutionPath: path, checkpoints, walls, difficulty };
-}
-
-export function validateMove(
-  puzzle: PuzzleData,
-  currentPath: Cell[],
-  nextCell: Cell
-): { valid: boolean; reason?: string } {
-  if (currentPath.length === 0) {
-    const start = puzzle.solutionPath[0]!;
-    if (nextCell.row === start.row && nextCell.col === start.col) {
-      return { valid: true };
-    }
-    return { valid: false, reason: 'Must start at checkpoint 1' };
-  }
-
-  const last = currentPath[currentPath.length - 1]!;
-  const dr = Math.abs(nextCell.row - last.row);
-  const dc = Math.abs(nextCell.col - last.col);
-  if (dr + dc !== 1) {
-    return { valid: false, reason: 'Must move to adjacent cell' };
-  }
-
-  if (currentPath.some(c => c.row === nextCell.row && c.col === nextCell.col)) {
-    return { valid: false, reason: 'Cell already visited' };
-  }
-
-  const ek = edgeKey(last.row, last.col, nextCell.row, nextCell.col);
-  if (puzzle.walls.has(ek)) {
-    return { valid: false, reason: 'Wall blocks this path' };
-  }
-
-  return { valid: true };
-}
-
-export function isOnSolutionPath(puzzle: PuzzleData, path: Cell[], nextCell: Cell): boolean {
-  const nextIdx = path.length;
-  if (nextIdx >= puzzle.solutionPath.length) return false;
-  const expected = puzzle.solutionPath[nextIdx]!;
-  return expected.row === nextCell.row && expected.col === nextCell.col;
+  return { gridSize, solutionPath: path, checkpoints, checkpointCells, difficulty };
 }
 
 export function getNextHint(puzzle: PuzzleData, currentPath: Cell[]): Cell | null {
+  // Find where user path diverged from solution, or give next solution step
   const nextIdx = currentPath.length;
   if (nextIdx >= puzzle.solutionPath.length) return null;
   return puzzle.solutionPath[nextIdx]!;

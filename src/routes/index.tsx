@@ -34,6 +34,7 @@ function Index() {
           userPath={state.userPath}
           hintCell={state.hintCell}
           status={state.status}
+          error={state.error}
           onCellEnter={addCell}
         />
 

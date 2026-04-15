@@ -1,5 +1,5 @@
 import { useRef, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Cell, PuzzleData } from '@/lib/puzzle-generator';
 import type { GameStatus } from '@/hooks/use-game-state';
 
@@ -8,14 +8,15 @@ interface GameBoardProps {
   userPath: Cell[];
   hintCell: Cell | null;
   status: GameStatus;
+  error: string | null;
   onCellEnter: (cell: Cell) => void;
 }
 
 const CELL_SIZE = 48;
-const GAP = 6;
+const GAP = 5;
 const CORNER_R = 12;
 
-export function GameBoard({ puzzle, userPath, hintCell, status, onCellEnter }: GameBoardProps) {
+export function GameBoard({ puzzle, userPath, hintCell, status, error, onCellEnter }: GameBoardProps) {
   const boardRef = useRef<SVGSVGElement>(null);
   const isDragging = useRef(false);
 
@@ -69,18 +70,6 @@ export function GameBoard({ puzzle, userPath, hintCell, status, onCellEnter }: G
     isDragging.current = false;
   }, []);
 
-  // Build the set of open passages (edges on the solution path)
-  const passages = useMemo(() => {
-    const set = new Set<string>();
-    for (let i = 0; i < puzzle.solutionPath.length - 1; i++) {
-      const a = puzzle.solutionPath[i]!;
-      const b = puzzle.solutionPath[i + 1]!;
-      set.add(`${a.row},${a.col}-${b.row},${b.col}`);
-      set.add(`${b.row},${b.col}-${a.row},${a.col}`);
-    }
-    return set;
-  }, [puzzle.solutionPath]);
-
   // Visited set
   const visitedSet = useMemo(() => {
     const set = new Set<string>();
@@ -99,22 +88,26 @@ export function GameBoard({ puzzle, userPath, hintCell, status, onCellEnter }: G
       .join(' ');
   }, [userPath, getCellCenter]);
 
-  // Checkpoint lookup by cell position
-  const checkpointByCell = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const [pathIdx, cpNum] of puzzle.checkpoints.entries()) {
-      const cell = puzzle.solutionPath[pathIdx]!;
-      map.set(`${cell.row},${cell.col}`, cpNum);
-    }
-    return map;
-  }, [puzzle]);
-
   const hintKey = hintCell ? `${hintCell.row},${hintCell.col}` : null;
   const gradientId = 'pathGradient';
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4">
+    <div className="flex flex-1 flex-col items-center justify-center px-4">
       <div className="relative w-full max-w-[400px]">
+        {/* Error toast */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute -top-10 left-1/2 z-20 -translate-x-1/2 rounded-full bg-destructive px-4 py-1.5 text-xs font-medium text-destructive-foreground whitespace-nowrap"
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <svg
           ref={boardRef}
           viewBox={`0 0 ${svgSize} ${svgSize}`}
@@ -141,56 +134,17 @@ export function GameBoard({ puzzle, userPath, hintCell, status, onCellEnter }: G
           {/* Board background */}
           <rect x={padding} y={padding} width={totalSize} height={totalSize} rx="20" fill="var(--game-wall)" />
 
-          {/* Passage connectors between adjacent cells */}
-          {(() => {
-            const connectors: React.ReactNode[] = [];
-            for (let r = 0; r < puzzle.gridSize; r++) {
-              for (let c = 0; c < puzzle.gridSize; c++) {
-                // Right neighbor
-                if (c < puzzle.gridSize - 1 && passages.has(`${r},${c}-${r},${c + 1}`)) {
-                  const tl = getCellTopLeft(r, c);
-                  connectors.push(
-                    <rect
-                      key={`h-${r}-${c}`}
-                      x={tl.x + CELL_SIZE}
-                      y={tl.y}
-                      width={GAP}
-                      height={CELL_SIZE}
-                      fill="var(--game-tile)"
-                    />
-                  );
-                }
-                // Bottom neighbor
-                if (r < puzzle.gridSize - 1 && passages.has(`${r},${c}-${r + 1},${c}`)) {
-                  const tl = getCellTopLeft(r, c);
-                  connectors.push(
-                    <rect
-                      key={`v-${r}-${c}`}
-                      x={tl.x}
-                      y={tl.y + CELL_SIZE}
-                      width={CELL_SIZE}
-                      height={GAP}
-                      fill="var(--game-tile)"
-                    />
-                  );
-                }
-              }
-            }
-            return connectors;
-          })()}
-
-          {/* Grid cells */}
+          {/* All grid cells */}
           {Array.from({ length: puzzle.gridSize }, (_, r) =>
             Array.from({ length: puzzle.gridSize }, (_, c) => {
               const tl = getCellTopLeft(r, c);
               const key = `${r},${c}`;
               const isVisited = visitedSet.has(key);
               const isHint = hintKey === key;
-              const cpNum = checkpointByCell.get(key);
+              const cpNum = puzzle.checkpointCells.get(key);
 
               return (
                 <g key={key}>
-                  {/* Cell background */}
                   <rect
                     x={tl.x}
                     y={tl.y}
@@ -247,7 +201,7 @@ export function GameBoard({ puzzle, userPath, hintCell, status, onCellEnter }: G
             />
           )}
 
-          {/* Path endpoint dots */}
+          {/* Current position dot */}
           {userPath.length > 0 && (() => {
             const last = userPath[userPath.length - 1]!;
             const { x, y } = getCellCenter(last.row, last.col);
@@ -255,7 +209,7 @@ export function GameBoard({ puzzle, userPath, hintCell, status, onCellEnter }: G
               <circle
                 cx={x}
                 cy={y}
-                r={5}
+                r={6}
                 fill={status === 'complete' ? 'var(--game-success)' : 'var(--game-path-end)'}
               />
             );
@@ -286,7 +240,7 @@ export function GameBoard({ puzzle, userPath, hintCell, status, onCellEnter }: G
               className="h-full rounded-full"
               style={{ background: 'linear-gradient(90deg, var(--game-path), var(--game-path-end))' }}
               initial={{ width: '0%' }}
-              animate={{ width: `${(userPath.length / puzzle.solutionPath.length) * 100}%` }}
+              animate={{ width: `${(userPath.length / (puzzle.gridSize * puzzle.gridSize)) * 100}%` }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             />
           </div>
