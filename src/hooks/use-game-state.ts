@@ -74,23 +74,19 @@ export function useGameState(initialDifficulty: Difficulty = 'easy') {
 
       const key = cellKey(cell.row, cell.col);
 
-      // Allow undo by dragging back to second-to-last cell
-      if (prev.userPath.length >= 2) {
-        const secondLast = prev.userPath[prev.userPath.length - 2]!;
-        if (secondLast.row === cell.row && secondLast.col === cell.col) {
-          const newPath = prev.userPath.slice(0, -1);
-          let nc = 1;
-          const visited = new Set(newPath.map(c => cellKey(c.row, c.col)));
-          for (const [ck, cpNum] of prev.puzzle.checkpointCells.entries()) {
-            if (visited.has(ck) && cpNum >= nc) nc = cpNum + 1;
-          }
-          return { ...prev, userPath: newPath, nextCheckpoint: nc, hintCell: null, error: null };
-        }
-      }
+      // If cell is already in path, truncate path to that point
+      const existingIndex = prev.userPath.findIndex(c => c.row === cell.row && c.col === cell.col);
+      if (existingIndex !== -1) {
+        // If it's already the last cell, do nothing
+        if (existingIndex === prev.userPath.length - 1) return prev;
 
-      // Already visited?
-      if (prev.userPath.some(c => c.row === cell.row && c.col === cell.col)) {
-        return prev;
+        const newPath = prev.userPath.slice(0, existingIndex + 1);
+        let nc = 1;
+        const visited = new Set(newPath.map(c => cellKey(c.row, c.col)));
+        for (const [ck, cpNum] of prev.puzzle.checkpointCells.entries()) {
+          if (visited.has(ck) && cpNum >= nc) nc = cpNum + 1;
+        }
+        return { ...prev, userPath: newPath, nextCheckpoint: nc, hintCell: null, error: null };
       }
 
       // First cell must be checkpoint 1
@@ -133,14 +129,21 @@ export function useGameState(initialDifficulty: Difficulty = 'easy') {
 
   const undo = useCallback(() => {
     setState(prev => {
-      if (prev.userPath.length <= 1) return { ...prev, userPath: [], status: 'idle', hintCell: null, nextCheckpoint: 1, error: null };
+      if (prev.userPath.length === 0) return prev;
       const newPath = prev.userPath.slice(0, -1);
       let nc = 1;
       const visited = new Set(newPath.map(c => cellKey(c.row, c.col)));
       for (const [ck, cpNum] of prev.puzzle.checkpointCells.entries()) {
         if (visited.has(ck) && cpNum >= nc) nc = cpNum + 1;
       }
-      return { ...prev, userPath: newPath, nextCheckpoint: nc, hintCell: null, error: null };
+      return {
+        ...prev,
+        userPath: newPath,
+        status: newPath.length === 0 ? 'idle' : prev.status,
+        nextCheckpoint: nc,
+        hintCell: null,
+        error: null
+      };
     });
   }, []);
 

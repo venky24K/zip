@@ -48,10 +48,8 @@ function Index() {
       </div>
 
       <GameControls
-        onUndo={undo}
         onHint={showHint}
         onNewPuzzle={newPuzzle}
-        canUndo={state.userPath.length > 0}
         difficulty={state.difficulty}
       />
     </div>
