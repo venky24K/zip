@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { GameBoard } from '@/components/game/GameBoard';
 import { GameHeader } from '@/components/game/GameHeader';
 import { GameControls } from '@/components/game/GameControls';
-import { CompletionOverlay } from '@/components/game/CompletionOverlay';
 import { useGameState } from '@/hooks/use-game-state';
+import { CompletionOverlay } from '@/components/game/CompletionOverlay';
 
 export const Route = createFileRoute('/')({
   component: Index,
