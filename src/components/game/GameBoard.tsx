@@ -233,18 +233,6 @@ export function GameBoard({ puzzle, userPath, hintCell, status, error, onCellEnt
           )}
         </svg>
 
-        {/* Progress bar */}
-        <div className="mt-3 flex items-center justify-center">
-          <div className="h-1.5 w-48 overflow-hidden rounded-full bg-secondary">
-            <motion.div
-              className="h-full rounded-full"
-              style={{ background: 'linear-gradient(90deg, var(--game-path), var(--game-path-end))' }}
-              initial={{ width: '0%' }}
-              animate={{ width: `${(userPath.length / (puzzle.gridSize * puzzle.gridSize)) * 100}%` }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            />
-          </div>
-        </div>
       </div>
     </div>
   );
