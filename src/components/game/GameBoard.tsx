@@ -15,6 +15,8 @@ interface GameBoardProps {
 const CELL_SIZE = 48;
 const GAP = 5;
 const CORNER_R = 12;
+const PATH_WIDTH = 24;
+const CHECKPOINT_R = 12;
 
 export function GameBoard({ puzzle, userPath, hintCell, status, error, onCellEnter }: GameBoardProps) {
   const boardRef = useRef<SVGSVGElement>(null);
@@ -118,7 +120,7 @@ export function GameBoard({ puzzle, userPath, hintCell, status, error, onCellEnt
           onPointerCancel={handlePointerUp}
         >
           <defs>
-            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={gradientId} x1={padding} y1={padding} x2={padding + totalSize} y2={padding + totalSize} gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="var(--game-path)" />
               <stop offset="100%" stopColor="var(--game-path-end)" />
             </linearGradient>
@@ -163,20 +165,20 @@ export function GameBoard({ puzzle, userPath, hintCell, status, error, onCellEnt
                       <circle
                         cx={tl.x + CELL_SIZE / 2}
                         cy={tl.y + CELL_SIZE / 2}
-                        r={16}
-                        fill={isVisited ? (status === 'complete' ? 'var(--game-success)' : 'var(--game-checkpoint)') : 'var(--card)'}
+                        r={CHECKPOINT_R}
+                        fill={isVisited ? (status === 'complete' ? 'var(--game-success)' : 'var(--game-path)') : 'var(--card)'}
                         stroke={isVisited ? 'none' : 'var(--game-checkpoint)'}
-                        strokeWidth={2.5}
+                        strokeWidth={2}
                       />
                       <text
                         x={tl.x + CELL_SIZE / 2}
                         y={tl.y + CELL_SIZE / 2}
                         textAnchor="middle"
                         dominantBaseline="central"
-                        fontSize="12"
-                        fontWeight="700"
-                        fill={isVisited ? 'var(--card)' : 'var(--game-checkpoint)'}
-                        style={{ fontFamily: 'Inter, sans-serif' }}
+                        fontSize="10"
+                        fontWeight="800"
+                        fill={isVisited ? 'rgba(255,255,255,0.9)' : 'var(--game-checkpoint)'}
+                        style={{ fontFamily: 'Inter, sans-serif', pointerEvents: 'none' }}
                       >
                         {cpNum}
                       </text>
@@ -189,31 +191,31 @@ export function GameBoard({ puzzle, userPath, hintCell, status, error, onCellEnt
 
           {/* User drawn path */}
           {userPath.length > 0 && (
-            <path
-              d={userPathD}
-              fill="none"
-              stroke={status === 'complete' ? 'var(--game-success)' : `url(#${gradientId})`}
-              strokeWidth={8}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter={status === 'complete' ? 'url(#glow)' : undefined}
-              opacity={0.85}
-            />
+            <>
+              {/* Single cell path (circle) */}
+              {userPath.length === 1 && (
+                <circle
+                  cx={getCellCenter(userPath[0].row, userPath[0].col).x}
+                  cy={getCellCenter(userPath[0].row, userPath[0].col).y}
+                  r={PATH_WIDTH / 2}
+                  fill={status === 'complete' ? 'var(--game-success)' : 'var(--game-path)'}
+                />
+              )}
+              {/* Multicell path */}
+              <path
+                d={userPathD}
+                fill="none"
+                stroke={status === 'complete' ? 'var(--game-success)' : `url(#${gradientId})`}
+                strokeWidth={PATH_WIDTH}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter={status === 'complete' ? 'url(#glow)' : undefined}
+                opacity={0.9}
+              />
+            </>
           )}
 
-          {/* Current position dot */}
-          {userPath.length > 0 && (() => {
-            const last = userPath[userPath.length - 1]!;
-            const { x, y } = getCellCenter(last.row, last.col);
-            return (
-              <circle
-                cx={x}
-                cy={y}
-                r={6}
-                fill={status === 'complete' ? 'var(--game-success)' : 'var(--game-path-end)'}
-              />
-            );
-          })()}
+
 
           {/* Hint Indicator */}
           {hintCell && (() => {
